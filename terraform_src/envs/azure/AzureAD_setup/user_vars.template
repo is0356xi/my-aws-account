@@ -1,0 +1,19 @@
+# ユーザのパラメータ
+variable "user_params" {
+  default = {
+    # 管理者
+    admin = {
+      group_name          = "admins"
+      display_name        = "admin"
+      user_principal_name = "admin@xxx.onmicrosoft.com"
+      password            = "this is password"
+    }
+    # 開発者
+    dev = {
+      group_name          = "developers"
+      display_name        = "dev"
+      user_principal_name = "dev@xxx.onmicrosoft.com"
+      password            = "this is password"
+    }
+  }
+}

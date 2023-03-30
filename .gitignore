@@ -1,0 +1,5 @@
+*.terraform*
+*.tfstate*
+
+*user_vars*
+!*user_vars.template*
