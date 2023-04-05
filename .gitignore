@@ -1,5 +1,12 @@
 *.terraform*
 *.tfstate*
 
+# terraformの公開したくない変数群
+*.tfvars
+
+# ADユーザ
 *user_vars*
 !*user_vars.template*
+
+# memo
+*.drawio*
