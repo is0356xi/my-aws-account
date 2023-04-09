@@ -10,3 +10,9 @@
 
 # memo
 *.drawio*
+
+# テスト用アプリケーション 
+*node_module*
+*.pyc
+*py310*
+
