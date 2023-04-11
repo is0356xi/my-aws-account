@@ -1,5 +1,3 @@
-/*
-output <output名>{
-    value = <outputする値>
+output created_rtb{
+    value = aws_route_table.route_table
 }
-*/

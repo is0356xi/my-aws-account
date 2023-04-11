@@ -18,7 +18,7 @@ module "igw" {
 }
 
 
-# セキュリティグループの作成 (親子関係を考慮)
+# セキュリティグループの作成 (親)
 module "securitygroup" {
   source = "../../../modules/VPC/securitygroups"
 
@@ -30,6 +30,7 @@ module "securitygroup" {
   depends_on = [module.network]
 }
 
+# セキュリティグループの作成 (子)
 module "securitygroup_child" {
   source = "../../../modules/VPC/securitygroups"
 
@@ -38,9 +39,10 @@ module "securitygroup_child" {
   created_vpc = module.network.created_vpc
   created_sg  = module.securitygroup.created_sg
 
-  depends_on = [module.network]
+  depends_on = [module.network, module.securitygroup]
 }
 
+# セキュリティグループの作成 (孫)
 module "securitygroup_grandchild" {
   source = "../../../modules/VPC/securitygroups"
 
@@ -53,47 +55,77 @@ module "securitygroup_grandchild" {
   )
 
 
-  depends_on = [module.network]
+  depends_on = [module.securitygroup_child]
 }
 
-module "securitygroup_great_grandchild" {
-  source = "../../../modules/VPC/securitygroups"
-
-  sg_params   = var.sg_params.great_grandchild
-  MyIp        = var.MyIp
-  created_vpc = module.network.created_vpc
-  created_sg = merge(
-    module.securitygroup.created_sg,
-    module.securitygroup_child.created_sg,
-    module.securitygroup_grandchild.created_sg,
-  )
-
-  depends_on = [module.network]
-}
 
 locals {
   created_sg = merge(
     module.securitygroup.created_sg,
     module.securitygroup_child.created_sg,
     module.securitygroup_grandchild.created_sg,
-    module.securitygroup_great_grandchild.created_sg,
   )
 }
 
-# インスタンスの作成
-module "ec2" {
+
+# IAMインスタンスプロファイル用のIAMロールを作成
+module "iam_role" {
+  source = "../../../modules/IAM/role"
+
+  role_params = var.role_params
+}
+
+
+# WEBサーバ用インスタンスの作成
+module "web_server" {
   source     = "../../../modules/EC2/instances"
   env_params = var.env_params
 
-  ec2_params     = var.ec2_params
+  ec2_params     = var.ec2_params.web
   created_subnet = module.network.created_subnet
   created_sg     = local.created_sg
+  user_data_vars = var.user_data_vars
+  created_role   = null
 
   depends_on = [module.network, module.securitygroup]
-
 }
 
-# インスタンスにElasticIPを付与
+# DBサーバ用インスタンスの作成
+module "db_server" {
+  source     = "../../../modules/EC2/instances"
+  env_params = var.env_params
+
+  ec2_params     = var.ec2_params.db
+  created_subnet = module.network.created_subnet
+  created_sg     = local.created_sg
+  user_data_vars = var.user_data_vars
+  created_role   = null
+
+  depends_on = [module.network, module.securitygroup]
+}
+
+# 開発サーバ用インスタンスの作成
+module "dev_server" {
+  source     = "../../../modules/EC2/instances"
+  env_params = var.env_params
+
+  ec2_params     = var.ec2_params.dev
+  created_subnet = module.network.created_subnet
+  created_sg     = local.created_sg
+  user_data_vars = var.user_data_vars
+  created_role   = module.iam_role.created_role
+
+  depends_on = [module.network, module.securitygroup, module.iam_role]
+}
+
+output created_servers{
+  value = {
+    dev_server_instance_id = module.dev_server.created_ec2["Dev-Server"].id
+    db_server_private_ip = module.db_server.created_ec2["DB-Server"].private_ip
+  }
+}
+
+# WEBサーバ用のインスタンスにElasticIPを付与
 module "add_elasticip" {
   source = "../../../modules/VPC/elasticip"
 
@@ -105,9 +137,9 @@ module "add_elasticip" {
   created_vpc    = module.network.created_vpc
   created_subnet = module.network.created_subnet
   created_sg     = local.created_sg
-  created_ec2    = module.ec2.created_ec2
+  created_ec2    = module.web_server.created_ec2
 
-  depends_on = [module.ec2, module.securitygroup]
+  depends_on = [module.web_server, module.securitygroup]
 }
 
 
@@ -141,11 +173,21 @@ module "vpc_endpoint" {
   created_vpc    = module.network.created_vpc
   created_subnet = module.network.created_subnet
   created_sg     = local.created_sg
+  created_rtb = module.routetable.created_rtb
 
-  depends_on = [module.network, module.securitygroup]
+  depends_on = [module.network, module.securitygroup, module.routetable]
 }
 
 
+
+### デバッグ ###
+# data "template_file" "user_data_test" {
+#   template = file("app_setup_AL2.sh")
+#   vars = {
+#     vars = "{\"host\":\"<RDSエンドポイント>\", \"port\":\"3306\", \"user\":\"securitytest\", \"password\":\"Jamadayo61!\", \"database\":\"<データベース名\"}"
+#   }
+# }
+
 # output "debug" {
-#   value = module.securitygroup.created_sg
+#   value = data.template_file.user_data_test
 # }

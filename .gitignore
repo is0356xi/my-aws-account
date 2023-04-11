@@ -16,3 +16,5 @@
 *.pyc
 *py310*
 
+# ユーザデータに記載したDB接続情報
+terraform_src/envs/aws/SecurityTest/user_data_vars.tf

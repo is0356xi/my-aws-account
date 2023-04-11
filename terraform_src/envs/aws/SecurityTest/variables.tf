@@ -62,18 +62,18 @@ variable "subnet_params" {
 variable "sg_params" {
   default = {
     parent = {
-      # VPCエンドポイント用のセキュリティグループ
-      sg_for_vpcendpoint = {
-        name        = "sg_for_vpcendpoint"
-        description = "Allow ALL Traffic from AWS-Service"
+      # 開発サーバ用のセキュリティグループ
+      sg_for_devserver = {
+        name        = "sg_for_devserver"
+        description = "Allow ICMP for test-ping"
         vpc_name    = "vpc_for_securitytest"
 
         rules_ingress = {
-          allow_icmp = {
-            from_port   = 443
-            to_port     = 443
-            protocol    = "TCP"
-            cidr_blocks = ["0.0.0.0/0"]
+          allow_ping = {
+            from_port   = -1
+            to_port     = -1
+            protocol    = "ICMP"
+            cidr_blocks = ["MyIp"]
             sg_names    = null
           }
         }
@@ -81,32 +81,23 @@ variable "sg_params" {
     }
 
     child = {
-      # 開発サーバ用のセキュリティグループ
-      sg_for_devserver = {
-        name        = "sg_for_devserver"
-        description = "Allow ALL Traffic from VPC-endpoint"
+      # VPCエンドポイント用のセキュリティグループ
+      sg_for_vpcendpoint = {
+        name        = "sg_for_vpcendpoint"
+        description = "Allow TCP Inbound from Target Subnet of VPC-Endpoint"
         vpc_name    = "vpc_for_securitytest"
 
         rules_ingress = {
-          allow_icmp = {
-            from_port   = -1
-            to_port     = -1
-            protocol    = "ICMP"
-            cidr_blocks = ["MyIp"]
-            sg_names    = null
-          }
-          allow_https = {
+          allow_subnet_inbound = {
             from_port   = 443
             to_port     = 443
             protocol    = "TCP"
             cidr_blocks = null
-            sg_names    = ["sg_for_vpcendpoint"]
+            sg_names    = ["sg_for_devserver"]
           }
         }
       }
-    }
 
-    grandchild = {
       # Webサーバ用のセキュリティグループ
       sg_for_webserver = {
         name        = "sg_for_webserver"
@@ -122,8 +113,8 @@ variable "sg_params" {
             sg_names    = ["sg_for_devserver"]
           }
           allow_http = {
-            from_port   = 80
-            to_port     = 80
+            from_port   = 5000
+            to_port     = 5000
             protocol    = "TCP"
             cidr_blocks = ["MyIp"]
             sg_names    = null
@@ -132,11 +123,11 @@ variable "sg_params" {
       }
     }
 
-    great_grandchild = {
+    grandchild = {
       # DBサーバ用のセキュリティグループ
       sg_for_dbserver = {
         name        = "sg_for_dbserver"
-        description = "Allow Internal-API and Internal-SSH"
+        description = "Allow Internal-MySQL and Internal-SSH"
         vpc_name    = "vpc_for_securitytest"
 
         rules_ingress = {
@@ -147,12 +138,12 @@ variable "sg_params" {
             cidr_blocks = null
             sg_names    = ["sg_for_devserver"]
           }
-          allow_dbapi = {
-            from_port   = 8080
-            to_port     = 8080
+          allow_mysql = {
+            from_port   = 3306
+            to_port     = 3306
             protocol    = "TCP"
             cidr_blocks = null
-            sg_names    = ["sg_for_webserver"]
+            sg_names    = ["sg_for_webserver", "sg_for_devserver"]
           }
         }
       }
@@ -160,40 +151,68 @@ variable "sg_params" {
   }
 }
 
-# EC2のパラメータ
+
+# IAMインスタンスプロファイル用のIAMロールのパラメータ
+variable "role_params" {
+  default = {
+    allow-ec2-to-ssm = {
+      role_name        = "allow-ec2-to-ssm"
+      assume_role_file = "assumerole_for_ec2.json"
+      policy_type      = "managed" # managed or file
+      policy_name      = "AmazonSSMManagedInstanceCore"
+    }
+  }
+}
+
+# EC2インスタンスのパラメータ
 variable "ec2_params" {
   default = {
-    Web-Server = {
-      ami                         = "ami-02a2700d37baeef8b"
-      availability_zone           = "ap-northeast-1a"
-      instance_type               = "t2.micro"
-      associate_public_ip_address = false
-      subnet_name                 = "publicsubnet_for_webserver"
-      security_group_names        = ["sg_for_webserver"]
-      source_dest_check           = null
-      key_name                    = "keypair-for-SecurityTest"
+    # WEBサーバ用インスタンス
+    web = {
+      Web-Server = {
+        ami                         = "ami-02a2700d37baeef8b" # AL2
+        availability_zone           = "ap-northeast-1a"
+        instance_type               = "t2.micro"
+        associate_public_ip_address = false
+        subnet_name                 = "publicsubnet_for_webserver"
+        security_group_names        = ["sg_for_webserver"]
+        source_dest_check           = null
+        key_name                    = "keypair-for-webapp"
+        user_data                   = "app_setup_AL2.sh"
+        role_name                   = null
+      }
     }
 
-    DB-Server = {
-      ami                         = "ami-02a2700d37baeef8b"
-      availability_zone           = "ap-northeast-1a"
-      instance_type               = "t2.micro"
-      associate_public_ip_address = false
-      subnet_name                 = "privatesubnet_for_dbserver"
-      security_group_names        = ["sg_for_dbserver"]
-      source_dest_check           = null
-      key_name                    = "keypair-for-SecurityTest"
+    # データベース用インスタンス
+    db = {
+      DB-Server = {
+        ami                         = "ami-0cd0830ef4d2de449" # RHEL
+        availability_zone           = "ap-northeast-1a"
+        instance_type               = "t2.micro"
+        associate_public_ip_address = true
+        subnet_name                 = "privatesubnet_for_dbserver"
+        security_group_names        = ["sg_for_dbserver"]
+        source_dest_check           = null
+        key_name                    = "keypair-for-webapp"
+        user_data                   = "db_setup_RHEL.sh"
+        role_name                   = null
+      }
     }
 
-    Dev-Server = {
-      ami                         = "ami-02a2700d37baeef8b"
-      availability_zone           = "ap-northeast-1a"
-      instance_type               = "t2.micro"
-      associate_public_ip_address = false
-      subnet_name                 = "privatesubnet_for_devserver"
-      security_group_names        = ["sg_for_devserver"]
-      source_dest_check           = null
-      key_name                    = "keypair-for-SecurityTest"
+    # 開発用インスタンス
+    dev = {
+      Dev-Server = {
+        ami                         = "ami-02a2700d37baeef8b" # AL2
+        availability_zone           = "ap-northeast-1a"
+        instance_type               = "t2.micro"
+        associate_public_ip_address = false
+        subnet_name                 = "privatesubnet_for_devserver"
+        security_group_names        = ["sg_for_devserver"]
+        source_dest_check           = null
+        key_name                    = "keypair-for-webapp"
+        user_data                   = null
+        role_name                   = "allow-ec2-to-ssm"
+      }
     }
   }
 }
@@ -227,6 +246,7 @@ variable "eip_params" {
 # ルートテーブルのパラメータ
 variable "rtb_params" {
   default = {
+    # WEBサーバのインターネットゲートウェイ向きのトラフィック用
     rtb_for_webserver = {
       name = "rtb_for_webserver"
 
@@ -240,6 +260,32 @@ variable "rtb_params" {
           next_hop    = "igw_for_webserver"
         }
       }
+    }
+
+    # DBサーバが必要なパッケージをinstallする時のアウトバウンド用
+    rtb_for_webserver = {
+      name = "rtb_for_webserver"
+
+      vpc_name    = "vpc_for_securitytest"
+      subnet_name = "privatesubnet_for_dbserver"
+
+      routes = {
+        for_igw = {
+          destination = "0.0.0.0/0"
+          type_dst    = "gateway"
+          next_hop    = "igw_for_webserver"
+        }
+      }
+    }
+
+    # S3のGateway型エンドポイント用のルートテーブル (SSMエージェント更新用)
+    rtb_for_s3endpoint = {
+      name = "rtb_for_s3endpoint"
+
+      vpc_name    = "vpc_for_securitytest"
+      subnet_name = "privatesubnet_for_devserver"
+
+      routes = {}
     }
   }
 }
@@ -276,6 +322,15 @@ variable "vpc_endpoint_params" {
       subnet_names         = ["privatesubnet_for_devserver"]
       security_group_names = ["sg_for_vpcendpoint"]
       private_dns_enabled  = true
+    }
+
+    s3 = {
+      service_name      = "com.amazonaws.ap-northeast-1.s3"
+      vpc_endpoint_type = "Gateway"
+
+      vpc_name             = "vpc_for_securitytest"
+      rtb_names = ["rtb_for_s3endpoint"]
+      private_dns_enabled  = false
     }
   }
 }
