@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 外部から注入された変数をスクリプト内で読み込み
-$vars=${vars}
+vars=${vars}
 
 # SSMエージェントのインストール・起動
 REGION_NAME=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/.$//')

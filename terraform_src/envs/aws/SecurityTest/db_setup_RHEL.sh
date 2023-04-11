@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 外部から注入された変数をスクリプト内で読み込み
-$vars=${vars}
+vars=${vars}
 
 # MySQLコマンドのインストール
 rpm -Uvh http://dev.mysql.com/get/mysql80-community-release-el8-1.noarch.rpm

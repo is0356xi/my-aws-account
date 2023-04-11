@@ -1,5 +1,7 @@
 variable "user_data_vars" {
   default = {
-    Web-Server = "{\"host\":\"<RDSエンドポイントorDBサーバのプライベートIP>\", \"port\":\"3306\", \"user\":\"<ユーザ名>\", \"password\":\"<パスワード>\", \"database\":\"<データベース名\"}"
+    Web-Server = "{\"host\":\"<RDSエンドポイントorDBサーバのプライベートIP>\", \"port\":\"3306\", \"user\":\"<ユーザ名>\", \"password\":\"<パスワード>\", \"database\":\"<データベース名>\"}"
+    DB-Server = "None"
+    Dev-Server = "None"
   }
 }

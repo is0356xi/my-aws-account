@@ -173,7 +173,7 @@ variable "ec2_params" {
         ami                         = "ami-02a2700d37baeef8b" # AL2
         availability_zone           = "ap-northeast-1a"
         instance_type               = "t2.micro"
-        associate_public_ip_address = false
+        associate_public_ip_address = true
         subnet_name                 = "publicsubnet_for_webserver"
         security_group_names        = ["sg_for_webserver"]
         source_dest_check           = null
@@ -263,8 +263,8 @@ variable "rtb_params" {
     }
 
     # DBサーバが必要なパッケージをinstallする時のアウトバウンド用
-    rtb_for_webserver = {
-      name = "rtb_for_webserver"
+    rtb_for_dbserver = {
+      name = "rtb_for_dbserver"
 
       vpc_name    = "vpc_for_securitytest"
       subnet_name = "privatesubnet_for_dbserver"
@@ -328,9 +328,9 @@ variable "vpc_endpoint_params" {
       service_name      = "com.amazonaws.ap-northeast-1.s3"
       vpc_endpoint_type = "Gateway"
 
-      vpc_name             = "vpc_for_securitytest"
-      rtb_names = ["rtb_for_s3endpoint"]
-      private_dns_enabled  = false
+      vpc_name            = "vpc_for_securitytest"
+      rtb_names           = ["rtb_for_s3endpoint", "rtb_for_webserver"]
+      private_dns_enabled = false
     }
   }
 }

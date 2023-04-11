@@ -118,29 +118,23 @@ module "dev_server" {
   depends_on = [module.network, module.securitygroup, module.iam_role]
 }
 
-output created_servers{
-  value = {
-    dev_server_instance_id = module.dev_server.created_ec2["Dev-Server"].id
-    db_server_private_ip = module.db_server.created_ec2["DB-Server"].private_ip
-  }
-}
 
 # WEBサーバ用のインスタンスにElasticIPを付与
-module "add_elasticip" {
-  source = "../../../modules/VPC/elasticip"
+# module "add_elasticip" {
+#   source = "../../../modules/VPC/elasticip"
 
-  # ENI・ElasticIPのパラメータ
-  eni_params = var.eni_params
-  eip_params = var.eip_params
+#   # ENI・ElasticIPのパラメータ
+#   eni_params = var.eni_params
+#   eip_params = var.eip_params
 
-  # 作成済みのリソース
-  created_vpc    = module.network.created_vpc
-  created_subnet = module.network.created_subnet
-  created_sg     = local.created_sg
-  created_ec2    = module.web_server.created_ec2
+#   # 作成済みのリソース
+#   created_vpc    = module.network.created_vpc
+#   created_subnet = module.network.created_subnet
+#   created_sg     = local.created_sg
+#   created_ec2    = module.web_server.created_ec2
 
-  depends_on = [module.web_server, module.securitygroup]
-}
+#   depends_on = [module.web_server, module.securitygroup]
+# }
 
 
 # ルートテーブルの作成
@@ -173,18 +167,27 @@ module "vpc_endpoint" {
   created_vpc    = module.network.created_vpc
   created_subnet = module.network.created_subnet
   created_sg     = local.created_sg
-  created_rtb = module.routetable.created_rtb
+  created_rtb    = module.routetable.created_rtb
 
   depends_on = [module.network, module.securitygroup, module.routetable]
 }
 
+
+output "created_servers" {
+  value = {
+    dev_server_instance_id = module.dev_server.created_ec2["Dev-Server"].id
+    db_server_private_ip   = module.db_server.created_ec2["DB-Server"].private_ip
+    # webapp_url             = "http://${module.add_elasticip.created_eip["eip_for_webserver"].public_ip}:5000"
+    webapp_url = "http://${module.web_server.created_ec2["Web-Server"].public_ip}:5000"
+  }
+}
 
 
 ### デバッグ ###
 # data "template_file" "user_data_test" {
 #   template = file("app_setup_AL2.sh")
 #   vars = {
-#     vars = "{\"host\":\"<RDSエンドポイント>\", \"port\":\"3306\", \"user\":\"securitytest\", \"password\":\"Jamadayo61!\", \"database\":\"<データベース名\"}"
+#     vars = "\"{'host':'10.1.1.236', 'port':'3306', 'user':'test_user', 'password':'Jamadayo61!', 'database':'securitytest'}\""
 #   }
 # }
 

@@ -5,4 +5,4 @@ variable "vpc_endpoint_params" {}
 variable "created_vpc" {}
 variable "created_subnet" {}
 variable "created_sg" {}
-variable created_rtb {}
+variable "created_rtb" {}
