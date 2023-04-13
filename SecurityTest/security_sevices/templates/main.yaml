@@ -1,0 +1,154 @@
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      # IAM Access Analyzer
+      - Label:
+          default: "** IAM Access Analyzer **"
+        Parameters:
+          - AccessAnalyzerTemplateURL
+          - AnalyzerType
+
+      # AWS Config
+      - Label:
+          default: "** AWS Config **"
+        Parameters:
+          - ConfigTemplateURL
+          - BucketName
+
+      # GuardDuty
+      - Label:
+          default: "** Guard Duty **"
+        Parameters:
+          - GuardDutyTemplateURL
+          - Frequency
+
+      # Security Hub
+      - Label:
+          default: "** Security Hub **"
+        Parameters:
+          - SecurityHubTemplateURL
+
+      # Notification
+      - Label:
+          default: "** Notification Feature **"
+        Parameters:
+          - NotificationTemplateURL
+          - S3BucketofState
+          - S3ObjectofState
+          - NotificaitonTarget
+
+
+Parameters:
+  # 環境名
+  Env:
+    Description: environment name in which deploy the stacks
+    Type: String
+    Default: main
+
+  # IAM Access Analyzer
+  AccessAnalyzerTemplateURL:
+    Description: IAM Access Analyzer Template-URL stored in S3
+    Type: String
+  AnalyzerType:
+    Description: Type of IAM Access Analyzer
+    Type: String
+    AllowedValues:
+      - ACCOUNT
+      - ORGANIZATION
+
+  # AWS Config
+  ConfigTemplateURL:
+    Description: AWS Config Template-URL stored in S3
+    Type: String
+  BucketName:
+    Description: S3 bucket name used to record AWS Config data
+    Type: String
+
+  # CloudTrail
+  CloudTrailTemplateURL:
+    Description:  CloudTrail Template-URL stored in S3
+    Type: String
+
+  # GuardDuty
+  GuardDutyTemplateURL:
+    Description: GuardDuty Template-URL stored in S3
+    Type: String
+  Frequency:
+    Description: Specifies how frequently updated findings are exported.
+    Type: String
+    AllowedValues:
+     - FIFTEEN_MINUTES
+     - ONE_HOUR
+     - SIX_HOURS
+
+  # Security Hub
+  SecurityHubTemplateURL:
+    Description: SecurityHub Template-URL stored in S3
+    Type: String
+
+  # Notification
+  NotificationTemplateURL:
+    Description:  Notificaiton Template-URL stored in S3
+    Type: String
+  S3BucketofState:
+    Description: S3-Bucket-Name where th ASL-JSON-file is stored. 
+    Type: String
+  S3ObjectofState:
+    Description: S3-Object-Name where th ASL-JSON-file is stored. 
+    Type: String
+  NotificationTarget:
+    Description: Notification Target that recieve messages from SNSTopic. 
+    Type: String
+
+
+Resources:
+  # IAM Access Analyzer
+  AccessAnalyzer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref AccessAnalyzerTemplateURL
+      Parameters:
+        AnalyzerType: !Ref AnalyzerType
+
+  # AWS Config
+  Config:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref ConfigTemplateURL
+      Parameters:
+        BucketName: !Ref BucketName
+
+  # CloudTrail
+  CloudTrail:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref CloudTrailTemplateURL
+      Parameters:
+        Env: !Ref Env
+
+  # Guard Duty
+  GuardDuty:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref GuardDutyTemplateURL
+      Parameters:
+        Frequency: !Ref Frequency
+
+  # Security Hub
+  SecurityHub:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref SecurityHubTemplateURL
+
+  # Notification
+  Notification:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref NotificationTemplateURL
+      Parameters:
+        Env: !Ref Env
+        S3BucketofState: !Ref S3BucketofState
+        S3ObjectofState: !Ref S3ObjectofState
+        NotificationTarget: !Ref NotificationTarget
+
+  

@@ -1,0 +1,14 @@
+Parameters:
+  AnalyzerType:
+    Description: Type of IAM Access Analyzer
+    Type: String
+    AllowedValues:
+      - ACCOUNT
+      - ORGANIZATION
+
+Resources:
+  AccessAnalyzer:
+    Type: AWS::AccessAnalyzer::Analyzer
+    Properties:
+      Type: !Ref AnalyzerType
+      AnalyzerName: AccessAnalyzer

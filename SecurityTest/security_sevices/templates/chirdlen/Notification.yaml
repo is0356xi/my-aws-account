@@ -1,0 +1,229 @@
+Parameters:
+  Env:
+    Description: environment name in which deploy the stacks
+    Type: String
+    Default: test
+  S3BucketofState:
+    Description: S3-Bucket-Name where the ASL-JSON-file is stored. 
+    Type: String
+  S3ObjectofState:
+    Description: S3-Object-Name where the ASL-JSON-file is stored. 
+    Type: String
+  NotificationTarget:
+    Description: Notification Target that recieve messages from SNSTopic. 
+    Type: String
+    
+Resources:
+  # Step Functions
+  NotifyStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      DefinitionS3Location:
+        Bucket: !Ref S3BucketofState
+        Key: !Ref S3ObjectofState
+      DefinitionSubstitutions:
+        EventCheckLambdaArn: !GetAtt EventCheckLambda.Arn
+        EventBusName: !GetAtt EventBusSecurityNotification.Name
+        SNSTopicArn: !GetAtt SNSTopicforSecurityNotification.TopicArn
+      RoleArn: !Sub ${RoleforStepFuntions.Arn}
+
+  # EventBus: StepFunctionsで整形したメッセージをイベントとして受け取る
+  EventBusSecurityNotification:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: securitynotification
+
+  # StepFunctionsにEventBus/SNSTopic/Lambdaへのアクションを許可するIAMロール
+  RoleforStepFuntions:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${Env}-Allow-PostEvent-for-StepFunctions
+      Description: Allow PutEvent/Publish to EventBridge-EventBus for StepFunctions
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AllowPutEvent
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # EventBusに対するPutEventsを許可
+              - Sid: EventBusPutEvents 
+                Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !GetAtt EventBusSecurityNotification.Arn
+              # SNSに対するPublishを許可
+              - Sid: SNSTopicPublish 
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - !GetAtt SNSTopicforSecurityNotification.TopicArn
+              # Lamabdaに対するInvokeを許可
+              - Sid: LambdaInvoke
+                Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: 
+                  - !Sub ${EventCheckLambda.Arn}
+    DependsOn: 
+      - EventBusSecurityNotification
+      - SNSTopicforSecurityNotification
+      - EventCheckLambda
+
+  # 各セキュリティサービスの検出結果をStepFunctionsに送信するイベントルールEventBridge 
+  EventRuleSecurityFindingstoStateMachine:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Send Security-Findings to StateMachine"
+      EventPattern:
+        source:
+          - aws.securityhub
+          - aws.guardduty
+          - aws.access-analyzer
+        detail-type:
+          - Security Hub Findings - Imported
+          - GuardDuty Finding
+          - Access Analyzer Finding
+      Name: !Sub ${Env}-Send-SecurityHubFindings-to-StepFunctions
+      State: ENABLED
+      Targets:
+        - Arn: !Sub ${NotifyStateMachine.Arn}
+          Id: EventRuleSecurityFindingstoStateMachine
+          RoleArn: !Sub ${RoleforEventRuleTarget.Arn}
+    DependsOn:
+     - NotifyStateMachine
+
+  # EventRuleがStepFunctionsにInvokeするためのIAMロール
+  RoleforEventRuleTarget:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Allow_EventBridge_Invoke_StepFunctions
+      Description: Allow EventBridge to invoke to StepFunctions
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AllowStepFunctionsInvoke
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                 - states:StartExecution
+                Resource:
+                 - !Sub ${NotifyStateMachine.Arn}
+
+  # EventRule: EventBusにPutされたイベントを橋渡しするルール (SNS以外の通知先用)
+  # EventRulePublishtoSNS:
+  #   Type: AWS::Events::Rule
+  #   Properties:
+  #     Description: "Send SecurityFindings-Message to SNSTopic"
+  #     EventBusName: !GetAtt EventBusSecurityNotification.Name
+  #     EventPattern:
+  #       source:
+  #         - "stepfunctions.securitynotification"
+  #       detail-type:
+  #         - "GuardDuty Finding Message"
+  #     Name: !Sub ${Env}-Send-SecurityFindingsMessage
+  #     State: ENABLED
+  #     Targets:
+  #       - Arn: !Sub ${SNSTopicforSecurityNotification.TopicArn}
+  #         Id: EventRulePublishtoSNS
+  #   DependsOn:
+  #    - SNSTopicforSecurityNotification
+
+  # SNS Topic
+  SNSTopicforSecurityNotification:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub Topic-${Env}-SecurityFindings
+      DisplayName: !Sub Topic-${Env}-SecurityFindings
+      Subscription:
+        - Endpoint: !Ref NotificationTarget
+          Protocol: email
+      
+  # SNSTopicポリシー： StepFunctionsからのPublishを許可する
+  SNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sns:Publish
+            Resource: 
+              - !GetAtt NotifyStateMachine.Arn
+      Topics:
+        - !Ref SNSTopicforSecurityNotification
+    DependsOn: 
+      - NotifyStateMachine
+      - SNSTopicforSecurityNotification
+
+  # イベントチェック・記録用のLambda
+  EventCheckLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Check Event invoked Lambda function.
+      FunctionName: Event-Check-Lambda
+      Code:
+        ZipFile: |
+          import json
+          
+          def lambda_handler(event, context):
+            # Function Logsとして出力
+            print(event) 
+
+            # Function Responseとして出力
+            response = {
+              'statusCode': 200,
+              'body': json.dumps(event)
+            }
+
+            return response
+      
+      Handler: index.lambda_handler
+      Role: !Sub ${LambdaRole.Arn}
+      Runtime: python3.9
+
+  # IAM Role for Lambda
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EventCheck-Lambda-Role
+      Description: Allow Basic Execution
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+
+
+# Notificaiton用StateMachineのARNをエクスポート
+Outputs:
+  NotifyStateMachineArn:
+    Value: !Sub ${NotifyStateMachine.Arn}
+    Export:
+      Name: !Sub ${Env}-NotifyStateMachineArn
+  RoleforEventRuleTargetArn:
+    Value: !Sub ${RoleforEventRuleTarget.Arn}
+    Export:
+      Name: !Sub ${Env}-RoleforEventRuleTargetArn

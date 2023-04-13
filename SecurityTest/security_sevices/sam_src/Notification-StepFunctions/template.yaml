@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Notification-StepFunctions
+
+  Sample SAM Template for Notification-StepFunctions
+
+Parameters:
+  NotificationTarget:
+    Type: String
+
+Resources:
+  NotifyStateMachine:
+    Type: AWS::Serverless::StateMachine 
+    Properties:
+      DefinitionUri: statemachine/Notify_StepFunctionsBased.asl.json
+      DefinitionSubstitutions:
+        EventCheckLambdaArn: !GetAtt EventCheckLambda.Arn
+        EventBusName: !GetAtt EventBusSecurityNotification.Name
+        SNSTopicArn: !GetAtt SNSTopicforSecurityNotification.TopicArn
+      Policies: 
+        - LambdaInvokePolicy:
+            FunctionName: !Ref EventCheckLambda
+        - EventBridgePutEventsPolicy:
+            EventBusName: !GetAtt EventBusSecurityNotification.Name
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt SNSTopicforSecurityNotification.TopicName
+
+
+  # イベントチェック用のLambda
+  EventCheckLambda:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: functions/EventCheck/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+
+  # セキュリティイベント通知用のEventRule
+  EventBusSecurityNotification:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: securitynotification
+  
+  # セキュリティイベント通知用のSNSTopic
+  SNSTopicforSecurityNotification:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: Topic-for-StepFunctions
+      DisplayName: Topic-for-StepFunctions
+      Subscription:
+        - Endpoint: !Ref NotificationTarget
+          Protocol: email
+
+  
