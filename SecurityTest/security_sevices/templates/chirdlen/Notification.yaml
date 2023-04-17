@@ -100,6 +100,7 @@ Resources:
           RoleArn: !Sub ${RoleforEventRuleTarget.Arn}
     DependsOn:
      - NotifyStateMachine
+     - RoleforEventRuleTarget
 
   # EventRuleがStepFunctionsにInvokeするためのIAMロール
   RoleforEventRuleTarget:
@@ -140,10 +141,10 @@ Resources:
   #     Name: !Sub ${Env}-Send-SecurityFindingsMessage
   #     State: ENABLED
   #     Targets:
-  #       - Arn: !Sub ${SNSTopicforSecurityNotification.TopicArn}
-  #         Id: EventRulePublishtoSNS
+  #       - Arn: SNS以外の通知先
+  #         Id: SNS以外の通知先
   #   DependsOn:
-  #    - SNSTopicforSecurityNotification
+  #    - SNS以外の通知先
 
   # SNS Topic
   SNSTopicforSecurityNotification:
@@ -215,6 +216,44 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Path: /
+
+  # CloudTrailログをStepFunctionsに流すEventRule
+  EventRuleforCloudTrailtoStepFunctions:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Send CloudTrail-Logs to StepFunctions"
+      EventPattern:
+        source:
+          - aws.cloudtrail
+          - aws.ec2
+          - aws.s3
+          - aws.iam
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventSource:
+            - cloudtrail.amazonaws.com
+            - ec2.amazonaws.com
+            - s3.amazonaws.com
+            - iam.amazonaws.com
+          $or:
+            - eventName:
+              - prefix: AuthorizeSecurityGroup  # 接頭
+            - eventName:
+              - suffix: Object                  # 接尾
+          Not:
+            sourceIPAddress:
+              - cidr: "192.168.100.0/24"
+      Name:
+        Send-CloudTrailLogs-to-StepFunctions
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt NotifyStateMachine.Arn
+          Id: NotifyStateMachine
+          RoleArn: !Sub ${RoleforEventRuleTarget.Arn}
+    DependsOn: 
+      - NotifyStateMachine 
+      - RoleforEventRuleTarget
 
 
 # Notificaiton用StateMachineのARNをエクスポート

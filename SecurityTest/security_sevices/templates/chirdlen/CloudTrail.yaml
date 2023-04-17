@@ -121,3 +121,4 @@ Resources:
       IsMultiRegionTrail: true
       IncludeGlobalServiceEvents: true
       IsLogging: true
+    

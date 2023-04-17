@@ -173,14 +173,13 @@ module "vpc_endpoint" {
 }
 
 
-output "created_servers" {
-  value = {
-    dev_server_instance_id = module.dev_server.created_ec2["Dev-Server"].id
-    db_server_private_ip   = module.db_server.created_ec2["DB-Server"].private_ip
-    # webapp_url             = "http://${module.add_elasticip.created_eip["eip_for_webserver"].public_ip}:5000"
-    webapp_url = "http://${module.web_server.created_ec2["Web-Server"].public_ip}:5000"
-  }
-}
+# output "created_servers" {
+#   value = {
+#     dev_server_instance_id = module.dev_server.created_ec2["Dev-Server"].id
+#     db_server_private_ip = module.db_server.created_ec2["DB-Server"].private_ip
+#     webapp_url           = "http://${module.web_server.created_ec2["Web-Server"].public_ip}:5000"
+#   }
+# }
 
 
 ### デバッグ ###

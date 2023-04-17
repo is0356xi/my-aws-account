@@ -106,11 +106,15 @@ variable "sg_params" {
 
         rules_ingress = {
           allow_ssh = {
-            from_port   = 22
-            to_port     = 22
-            protocol    = "TCP"
+            from_port = 22
+            to_port   = 22
+            protocol  = "TCP"
+            ## 踏み台(開発用サーバ)を使用する場合
             cidr_blocks = null
             sg_names    = ["sg_for_devserver"]
+            ## 直接SSHする場合
+            # cidr_blocks = ["MyIp"]
+            # sg_names    = null
           }
           allow_http = {
             from_port   = 5000
@@ -132,11 +136,15 @@ variable "sg_params" {
 
         rules_ingress = {
           allow_ssh = {
-            from_port   = 22
-            to_port     = 22
-            protocol    = "TCP"
+            from_port = 22
+            to_port   = 22
+            protocol  = "TCP"
+            ## 踏み台(開発用サーバ)を使用する場合
             cidr_blocks = null
             sg_names    = ["sg_for_devserver"]
+            ## 直接SSHする場合
+            # cidr_blocks = ["MyIp"]
+            # sg_names    = null
           }
           allow_mysql = {
             from_port   = 3306

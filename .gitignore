@@ -3,6 +3,7 @@
 
 # terraformの公開したくない変数群
 *.tfvars
+*parameters.cfg
 
 # ADユーザ
 *user_vars*
