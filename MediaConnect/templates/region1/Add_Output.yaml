@@ -1,0 +1,79 @@
+Parameters:
+  OutputProtocol:
+    Type: String
+    Description: Output Protocol
+  PrimaryPort:
+    Type: Number
+    Description: Output Port1
+    Default: 8000
+  SecondaryPort:
+    Type: Number
+    Description: Output Port2
+    Default: 8001
+  MaxLatency:
+    Type: Number
+    Description: Max Latency for Zixi
+    Default: 1000
+  MinLatency:
+    Type: Number
+    Description: Min Latency for SRT
+    Default: 1000
+  PrimaryStreamId:
+    Type: String
+    Description: Stream ID for Zixi
+    Default: primary_streamid
+  SecondaryStreamId:
+    Type: String
+    Description: Stream ID for Zixi
+    Default: secondary_streamid
+  VpcInterfaceName:
+    Type: String
+    Description: VPC InterfaceName for VPCSource
+    Default: None
+  CidrAllowList:
+    Type: String
+    Description: Allow CIDR List
+    Default: 255.255.255.255/32
+  Destination:
+    Type: String
+    Description: Destination IP Address
+    Default: 255.255.255.255/32
+  
+
+Conditions:
+  IsZixi: !And [!Equals [!Ref OutputProtocol, "zixi-push"], !Equals [!Ref VpcInterfaceName, "None"]]
+  IsVpcOutput: !Not [!Equals [!Ref VpcInterfaceName, "None"]]
+  IsSrtListener: !And [!Equals [!Ref OutputProtocol, "srt-listener"], !Equals [!Ref VpcInterfaceName, "None"]]
+
+
+
+Resources:
+  FlowPrimaryOutput:
+    Type: AWS::MediaConnect::FlowOutput
+    Properties:
+      Name: Output-Region1FlowPrimary
+      FlowArn: !ImportValue Region1FlowPrimaryArn  
+      Description: Output-Region1FlowPrimary
+      Protocol: !Ref OutputProtocol
+      Port: !If [IsZixi, 2088, !Ref PrimaryPort]
+      MaxLatency: !If [IsZixi, !Ref MaxLatency, !Ref AWS::NoValue]
+      MinLatency: !If [IsSrtListener, !Ref MinLatency, !Ref AWS::NoValue]
+      StreamId: !If [IsZixi, !Ref PrimaryStreamId, !Ref AWS::NoValue]
+      VpcInterfaceAttachment: !If [IsVpcOutput, VpcInterfaceName: !Ref VpcInterfaceName, !Ref AWS::NoValue]
+      CidrAllowList: !If [IsSrtListener, [!Ref CidrAllowList], !Ref AWS::NoValue]
+      Destination: !If [IsZixi, !Ref Destination, !Ref AWS::NoValue]
+  
+  FlowSecondaryOutput:
+    Type: AWS::MediaConnect::FlowOutput
+    Properties:
+      Name: Output-Region1FlowSecondary
+      FlowArn: !ImportValue Region1FlowSecondaryArn  
+      Description: Output-Region1FlowSecondary
+      Protocol: !Ref OutputProtocol
+      Port: !If [IsZixi, 2088, !Ref SecondaryPort]
+      MaxLatency: !If [IsZixi, !Ref MaxLatency, !Ref AWS::NoValue]
+      MinLatency: !If [IsSrtListener, !Ref MinLatency, !Ref AWS::NoValue]
+      StreamId: !If [IsZixi, !Ref SecondaryStreamId, !Ref AWS::NoValue]
+      VpcInterfaceAttachment: !If [IsVpcOutput, VpcInterfaceName: !Ref VpcInterfaceName, !Ref AWS::NoValue]
+      CidrAllowList: !If [IsSrtListener, [!Ref CidrAllowList], !Ref AWS::NoValue]
+      Destination: !If [IsZixi, !Ref Destination, !Ref AWS::NoValue]

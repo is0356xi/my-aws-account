@@ -1,0 +1,123 @@
+Parameters:
+  Region:
+    Type: String
+    Description: AWS Region
+    Default: ap-northeast-1
+  PrimaryAvailabilityZone:
+    Type: String
+    Description: AWS Availability Zone
+    Default: ap-northeast-1a
+  SecondaryAvailabilityZone:
+    Type: String
+    Description: AWS Availability Zone
+    Default: us-east-1c
+  PrimaryIngestPort:
+    Type: Number
+    Description: Flow Listen Port
+    Default: 8000
+  SecondaryIngestPort:
+    Type: Number
+    Description: Flow Listen Port
+    Default: 8001
+  SourceProtocol:
+    Type: String
+    Description: Soruce Protocol
+  MaxBitrate:
+    Type: Number
+    Description: Max Bitrate
+    Default: 80000000
+  MaxLatency:
+    Type: Number
+    Description: Max Latency for Zixi
+    Default: 1000
+  MinLatency:
+    Type: Number
+    Description: Min Latency for SRT
+    Default: 1000
+  PrimaryStreamId:
+    Type: String
+    Description: Stream ID for Zixi
+    Default: primary_streamid
+  SecondaryStreamId:
+    Type: String
+    Description: Stream ID for Zixi
+    Default: secondary_streamid
+  VpcInterfaceName:
+    Type: String
+    Description: VPC InterfaceName for VPCSource
+    Default: None
+  WhitelistCidrforSource1:
+    Type: String
+    Description: Allow CIDR for Source1
+    Default: 255.255.255.255/32
+  WhitelistCidrforSource2:
+    Type: String
+    Description: Allow CIDR for Source2
+    Default: 255.255.255.255/32
+  FailoverMode:
+    Type: String
+    Description: Mode-Name of SourceFailover
+    Default: MERGE
+    AllowedValues:
+      - MERGE
+      - FAILOVER
+  RecoveryWindow:
+    Type: Number
+    Description: The size of buffer for MERGE Mode
+    Default: 200
+
+
+
+Conditions:
+  IsZixi: !Or [!Equals [!Ref SourceProtocol, "zixi-push"], !Equals [!Ref SourceProtocol, "zixi-pull"]]
+  IsVpcSource: !Not [!Equals [!Ref VpcInterfaceName, "None"]]
+  IsMERGE: !Equals [!Ref FailoverMode, "MERGE"]
+
+Resources:
+  MediaConnectFlowPrimary:
+    Type: AWS::MediaConnect::Flow
+    Properties:
+      Name: !Sub Flow-${PrimaryAvailabilityZone}
+      AvailabilityZone: !Ref PrimaryAvailabilityZone
+      Source:
+        Name: !Sub Source1-MediaConnectFlowPrimary
+        IngestPort: !If [IsZixi, 2088, !Ref PrimaryIngestPort]
+        MaxBitrate: !If [IsZixi, !Ref AWS::NoValue, !Ref MaxBitrate]
+        MaxLatency: !If [IsZixi, !Ref MaxLatency, !Ref AWS::NoValue]
+        MinLatency: !If [IsZixi, !Ref AWS::NoValue, !Ref MinLatency]
+        Protocol: !Ref SourceProtocol
+        StreamId: !If [IsZixi, !Ref PrimaryStreamId, !Ref AWS::NoValue]
+        VpcInterfaceName: !If [IsVpcSource, !Ref VpcInterfaceName, !Ref AWS::NoValue]
+        WhitelistCidr: !If [IsVpcSource, !Ref AWS::NoValue, !Ref WhitelistCidrforSource1]
+      SourceFailoverConfig:
+        FailoverMode: !Ref FailoverMode
+        State: ENABLED
+        RecoveryWindow: !If [IsMERGE, !Ref RecoveryWindow, !Ref AWS::NoValue]
+        SourcePriority: !If [IsMERGE, !Ref AWS::NoValue, PrimarySource: Source1-MediaConnectFlowPrimary]
+
+  MediaConnectSecondSource:
+    Type: AWS::MediaConnect::FlowSource
+    Properties:
+      Name: Source2-MediaConnectFlowPrimary
+      FlowArn: !GetAtt MediaConnectFlowPrimary.FlowArn
+      Description: Source2-MediaConnectFlowPrimary
+      IngestPort: !If [IsZixi, 2088, !Ref SecondaryIngestPort]
+      MaxBitrate: !If [IsZixi, !Ref AWS::NoValue, !Ref MaxBitrate]
+      MaxLatency: !If [IsZixi, !Ref MaxLatency, !Ref AWS::NoValue]
+      Protocol: !Ref SourceProtocol
+      StreamId: !If [IsZixi, !Ref SecondaryStreamId, !Ref AWS::NoValue]
+      VpcInterfaceName: !If [IsVpcSource, !Ref VpcInterfaceName, !Ref AWS::NoValue]
+      WhitelistCidr: !If [IsVpcSource, !Ref AWS::NoValue, !Ref WhitelistCidrforSource2]
+
+  OutputParameterPrimaryFlow:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /Region2FlowPrimaryIP
+      Type: String
+      Value: !GetAtt MediaConnectFlowPrimary.Source.IngestIp
+
+Outputs:
+  Region2FlowPrimaryArn:
+    Value: !GetAtt MediaConnectFlowPrimary.FlowArn
+    Export:
+      Name: Region2FlowPrimaryArn
