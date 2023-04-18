@@ -1,5 +1,14 @@
 # 構築手順
 
+## 事前準備
+- ```.\terraform_src\terraform.tfvars```を作成し、profile_nameを追加
+
+```sh:
+profile_name = "<AWS CLIのプロファイル名>"
+```
+
+
+
 ## ①MediaConnect Flowを作成
 - CloudFormation
 
