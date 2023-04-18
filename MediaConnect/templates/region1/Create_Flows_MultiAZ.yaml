@@ -1,0 +1,115 @@
+Parameters:
+  Region:
+    Type: String
+    Description: AWS Region
+    Default: us-east-1
+  PrimaryAvailabilityZone:
+    Type: String
+    Description: AWS Availability Zone
+    Default: us-east-1a
+  SecondaryAvailabilityZone:
+    Type: String
+    Description: AWS Availability Zone
+    Default: us-east-1c
+  PrimaryIngestPort:
+    Type: Number
+    Description: Flow Listen Port
+    Default: 8000
+  SecondaryIngestPort:
+    Type: Number
+    Description: Flow Listen Port
+    Default: 8001
+  SourceProtocol:
+    Type: String
+    Description: Soruce Protocol
+  MaxBitrate:
+    Type: Number
+    Description: Max Bitrate
+    Default: 80000000
+  MaxLatency:
+    Type: Number
+    Description: Max Latency for Zixi
+    Default: 1000
+  MinLatency:
+    Type: Number
+    Description: Min Latency for SRT
+    Default: 1000
+  PrimaryStreamId:
+    Type: String
+    Description: Stream ID for Zixi
+    Default: primary_streamid
+  SecondaryStreamId:
+    Type: String
+    Description: Stream ID for Zixi
+    Default: secondary_streamid
+  VpcInterfaceName:
+    Type: String
+    Description: VPC InterfaceName for VPCSource
+    Default: None
+  WhitelistCidr:
+    Type: String
+    Description: Allow CIDR
+    Default: 255.255.255.255/32
+
+
+
+Conditions:
+  IsZixi: !Or [!Equals [!Ref SourceProtocol, "zixi-push"], !Equals [!Ref SourceProtocol, "zixi-pull"]]
+  IsVpcSource: !Not [!Equals [!Ref VpcInterfaceName, "None"]]
+  
+Resources:
+  MediaConnectFlowPrimary:
+    Type: AWS::MediaConnect::Flow
+    Properties:
+      Name: !Sub Flow-${PrimaryAvailabilityZone}
+      AvailabilityZone: !Ref PrimaryAvailabilityZone
+      Source:
+        Name: !Sub Source1-MediaConnectFlowPrimary
+        IngestPort: !If [IsZixi, 2088, !Ref PrimaryIngestPort]
+        MaxBitrate: !If [IsZixi, !Ref AWS::NoValue, !Ref MaxBitrate]
+        MaxLatency: !If [IsZixi, !Ref MaxLatency, !Ref AWS::NoValue]
+        MinLatency: !If [IsZixi, !Ref AWS::NoValue, !Ref MinLatency]
+        Protocol: !Ref SourceProtocol
+        StreamId: !If [IsZixi, !Ref PrimaryStreamId, !Ref AWS::NoValue]
+        VpcInterfaceName: !If [IsVpcSource, !Ref VpcInterfaceName, !Ref AWS::NoValue]
+        WhitelistCidr: !If [IsVpcSource, !Ref AWS::NoValue, !Ref WhitelistCidr]
+  
+  MediaConnectFlowSecondary:
+    Type: AWS::MediaConnect::Flow
+    Properties:
+      Name: !Sub Flow-${SecondaryAvailabilityZone}
+      AvailabilityZone: !Ref SecondaryAvailabilityZone
+      Source:
+        Name: !Sub Source1-MediaConnectFlowSecondary
+        IngestPort: !If [IsZixi, 2088, !Ref SecondaryIngestPort]
+        MaxBitrate: !If [IsZixi, !Ref AWS::NoValue, !Ref MaxBitrate]
+        MaxLatency: !If [IsZixi, !Ref MaxLatency, !Ref AWS::NoValue]
+        MinLatency: !If [IsZixi, !Ref AWS::NoValue, !Ref MinLatency]
+        Protocol: !Ref SourceProtocol
+        StreamId: !If [IsZixi, !Ref SecondaryStreamId, !Ref AWS::NoValue]
+        VpcInterfaceName: !If [IsVpcSource, !Ref VpcInterfaceName, !Ref AWS::NoValue]
+        WhitelistCidr: !If [IsVpcSource, !Ref AWS::NoValue, !Ref WhitelistCidr]
+
+  OutputParameterPrimaryFlow:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /Region1FlowPrimaryIP
+      Type: String
+      Value: !GetAtt MediaConnectFlowPrimary.Source.IngestIp
+  
+  OutputParameterSecondaryFlow:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub /Region1FlowSecondaryIP
+      Type: String
+      Value: !GetAtt MediaConnectFlowSecondary.Source.IngestIp
+
+Outputs:
+  Region1FlowPrimaryArn:
+    Value: !GetAtt MediaConnectFlowPrimary.FlowArn
+    Export:
+      Name: Region1FlowPrimaryArn
+  Region1FlowSecondaryArn:
+    Value: !GetAtt MediaConnectFlowSecondary.FlowArn
+    Export:
+      Name: Region1FlowSecondaryArn
