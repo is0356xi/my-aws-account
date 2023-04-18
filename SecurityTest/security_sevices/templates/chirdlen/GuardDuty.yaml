@@ -1,0 +1,15 @@
+Parameters:
+  Frequency:
+    Description: Specifies how frequently updated findings are exported.
+    Type: String
+    AllowedValues:
+     - FIFTEEN_MINUTES
+     - ONE_HOUR
+     - SIX_HOURS
+
+Resources:
+  GuardDuty:
+    Type: AWS::GuardDuty::Detector
+    Properties:
+      Enable: true
+      FindingPublishingFrequency: !Ref Frequency

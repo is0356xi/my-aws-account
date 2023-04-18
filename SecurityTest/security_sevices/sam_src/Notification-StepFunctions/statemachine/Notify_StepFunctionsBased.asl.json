@@ -1,0 +1,196 @@
+{
+    "Comment": "A state machine that creates and sends notification content based on the source services.",
+    "StartAt": "Record_and_Notify",
+    "States": {
+        "Record_and_Notify":{
+            "Type": "Parallel",
+            "Branches": [
+                {   
+                    "StartAt": "Record_Event",
+                    "States": {
+                        "Record_Event":{
+                            "Type": "Task",
+                            "Resource": "${EventCheckLambdaArn}",
+                            "Retry": [
+                                {
+                                    "ErrorEquals": [
+                                        "States.TaskFailed"
+                                    ],
+                                    "IntervalSeconds": 10,
+                                    "MaxAttempts": 2,
+                                    "BackoffRate": 1
+                                }
+                            ],
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "Check_Source",
+                    "States": {
+                        "Check_Source": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.source",
+                                    "StringEquals": "aws.access-analyzer",
+                                    "Next": "Format_Event_from_AccessAnalyzer"
+                                },
+                                {
+                                    "Variable": "$.source",
+                                    "StringEquals": "aws.guardduty",
+                                    "Next": "Format_Event_from_GuardDuty"
+                                },
+                                {
+                                    "Variable": "$.source",
+                                    "StringEquals": "aws.securityhub",
+                                    "Next": "Check_Severity"
+                                }
+                            ],
+                            "Default": "Check_UserIdentity"
+                
+                        },
+                        "Check_UserIdentity":{
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.detail.userIdentity",
+                                    "StringEquals": "IAMUser",
+                                    "Next": "Format_Event_from_CloudTrail_IAMUser"
+                                },
+                                {
+                                    "Variable": "$.detail.userIdentity",
+                                    "StringEquals": "AWSService",
+                                    "Next": "Format_Event_from_CloudTrail_AWSService"
+                                }
+                            ]
+                        },
+                        "Format_Event_from_CloudTrail_IAMUser":{
+                            "Type": "Pass",
+                            "Next": "FunOut_Notification",
+                            "Parameters": {
+                                "DetailType.$": "$.detail-type",
+                                "FormattedSubject.$": "States.Format('{}の実行', $.detail.eventName)",
+                                "FormattedMessage.$": "States.Format('アカウント: {}\nユーザ情報: {}', $.account, $.detail.userIdentity.arn)"
+                            }        
+                        },
+                        "Format_Event_from_CloudTrail_AWSService":{
+                            "Type": "Pass",
+                            "Next": "FunOut_Notification",
+                            "Parameters": {
+                                "DetailType.$": "$.detail-type",
+                                "FormattedSubject.$": "States.Format('{}の実行', $.detail.eventName)",
+                                "FormattedMessage.$": "States.Format('アカウント: {}\nサービス情報: {}', $.account, $.detail.userIdentity.invokedBy)"
+                            }        
+                        },
+                        "Format_Event_from_AccessAnalyzer": {
+                            "Type": "Pass",
+                            "Next": "FunOut_Notification",
+                            "Parameters": {
+                                "DetailType.$": "$.detail-type",
+                                "FormattedSubject.$": "States.Format('テスト: {}', $.source)",
+                                "FormattedMessage.$": "States.Format('アカウント: {}\n', $.account)"
+                            }   
+                        },
+                        "Format_Event_from_GuardDuty":{
+                            "Type": "Pass",
+                            "Next": "FunOut_Notification",
+                            "Parameters": {
+                                "DetailType.$": "$.detail-type",
+                                "FormattedSubject.$": "States.Format('重大度: {}', $.detail.severity)",
+                                "FormattedMessage.$": "States.Format('アカウント: {}\n検知内容: {}\n', $.account, $.detail.title)"
+                            }
+                        },
+                        "Check_Severity":{
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.detail.findings[0].Severity.Label",
+                                    "StringEquals": "LOW",
+                                    "Next": "Ignore"
+                                },
+                                {
+                                    "Or": [
+                                        {
+                                            "Variable": "$.detail.findings[0].Severity.Label",
+                                            "StringEquals": "MEDIUM"
+                                        },
+                                        {
+                                            "Variable": "$.detail.findings[0].Severity.Label",
+                                            "StringEquals": "HIGH"
+                                        },
+                                        {
+                                            "Variable": "$.detail.findings[0].Severity.Label",
+                                            "StringEquals": "CRITICAL"
+                                        }
+                                    ],
+                                    "Next": "Format_Event_from_SecurityHub"
+                                }
+                            ]
+                        },
+                        "Format_Event_from_SecurityHub": {
+                            "Type": "Pass",
+                            "Next": "FunOut_Notification",
+                            "Parameters": {
+                                "DetailType.$": "$.detail-type",
+                                "FormattedSubject.$": "States.Format('重大度: {}', $.detail.findings[0].Severity.Label)",
+                                "FormattedMessage.$": "States.Format('アカウント: {}\n検知内容: {}\n', $.account, $.detail.findings[0].Title)"
+                            }
+                        },
+                        "Ignore":{
+                            "Type": "Pass",
+                            "Result": "Severity is 'LOW' or 'MEDIUM'.",
+                            "End": true
+                        },
+                        "FunOut_Notification": {
+                            "Type": "Parallel",
+                            "Branches":[
+                                {
+                                    "StartAt": "Put_Event_to_EventBridge",
+                                    "States":{
+                                        "Put_Event_to_EventBridge": {
+                                            "Type": "Task",
+                                            "Resource": "arn:aws:states:::events:putEvents",
+                                            "Parameters": {
+                                               "Entries": [
+                                                    {
+                                                        "Detail": {
+                                                            "Subject.$": "$.FormattedSubject",
+                                                            "Message.$": "$.FormattedMessage"
+                                                        },
+                                                        "DetailType.$": "$.DetailType",
+                                                        "EventBusName": "${EventBusName}",
+                                                        "Source": "stepfunctions.securitynotification"
+                                                    }
+                                               ]
+                                            },
+                                            "End": true
+                                        }
+                                    }
+                                },
+                                {
+                                    "StartAt": "Publish_Event_to_SNS",
+                                    "States": {
+                                        "Publish_Event_to_SNS":{
+                                            "Type": "Task",
+                                            "Resource": "arn:aws:states:::sns:publish",
+                                            "Parameters": {
+                                                "TopicArn": "${SNSTopicArn}",
+                                                "Subject.$": "$.FormattedSubject",
+                                                "Message.$": "$.FormattedMessage"
+                                            },
+                                            "End": true
+                                        }
+                
+                                    }
+                                }
+                            ],
+                            "End": true
+                        }
+                    }
+                }
+            ],
+            "End": true
+        }
+    }
+}

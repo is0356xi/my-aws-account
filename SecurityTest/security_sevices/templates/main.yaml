@@ -1,0 +1,198 @@
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      # General Settings
+      - Label:
+          default: "** General Settings **"
+        Parameters:
+          - Region
+          - TemplateBucketName
+
+      # IAM Access Analyzer
+      - Label:
+          default: "** IAM Access Analyzer **"
+        Parameters:
+          - AccessAnalyzerTemplateFile
+          - AnalyzerType
+
+      # AWS Config
+      - Label:
+          default: "** AWS Config **"
+        Parameters:
+          - ConfigTemplateFile
+          - BucketName
+
+      # GuardDuty
+      - Label:
+          default: "** Guard Duty **"
+        Parameters:
+          - GuardDutyTemplateFile
+          - Frequency
+
+      # Security Hub
+      - Label:
+          default: "** Security Hub **"
+        Parameters:
+          - SecurityHubTemplateFile
+
+      # Notification
+      - Label:
+          default: "** Notification Feature **"
+        Parameters:
+          - NotificationTemplateFile
+          - S3BucketofState
+          - S3ObjectofState
+          - NotificaitonTarget
+
+      # Detective
+      - Labal:
+          default: "** Detective **"
+        Parameters:
+          - DetectiveTemplateFile
+          - ExistsDetective
+
+
+Parameters:
+  # 環境名
+  Env:
+    Description: environment name in which deploy the stacks
+    Type: String
+    Default: main
+  
+  # リージョン
+  Region:
+    Description: Region name in which deploy the stacks
+    Type: String
+    Default: ap-northeast-1
+  
+  # Cfnテンプレートファイルを保持しているS3バケット名
+  TemplateBucketName:
+    Description: Bucket Name of S3 that stored cfn-template files
+    Type: String
+
+  # IAM Access Analyzer
+  AccessAnalyzerTemplateFile:
+    Description: IAM Access Analyzer Template-URL stored in S3
+    Type: String
+  AnalyzerType:
+    Description: Type of IAM Access Analyzer
+    Type: String
+    AllowedValues:
+      - ACCOUNT
+      - ORGANIZATION
+
+  # AWS Config
+  ConfigTemplateFile:
+    Description: AWS Config Template-URL stored in S3
+    Type: String
+  BucketName:
+    Description: S3 bucket name used to record AWS Config data
+    Type: String
+
+  # CloudTrail
+  CloudTrailTemplateFile:
+    Description:  CloudTrail Template-URL stored in S3
+    Type: String
+
+  # GuardDuty
+  GuardDutyTemplateFile:
+    Description: GuardDuty Template-URL stored in S3
+    Type: String
+  Frequency:
+    Description: Specifies how frequently updated findings are exported.
+    Type: String
+    AllowedValues:
+     - FIFTEEN_MINUTES
+     - ONE_HOUR
+     - SIX_HOURS
+
+  # Security Hub
+  SecurityHubTemplateFile:
+    Description: SecurityHub Template-URL stored in S3
+    Type: String
+
+  # Notification
+  NotificationTemplateFile:
+    Description:  Notificaiton Template-URL stored in S3
+    Type: String
+  S3BucketofState:
+    Description: S3-Bucket-Name where th ASL-JSON-file is stored. 
+    Type: String
+  S3ObjectofState:
+    Description: S3-Object-Name where th ASL-JSON-file is stored. 
+    Type: String
+  NotificationTarget:
+    Description: Notification Target that recieve messages from SNSTopic. 
+    Type: String
+
+  # Detective
+  DetectiveTemplateFile:
+    Description:  Detective Template-URL stored in S3
+    Type: String
+  ExistsDetective:
+    Description: Whether Detective exists or not
+    Type: String
+
+
+Conditions:
+  CreateDetective: !Equals [!Ref ExistsDetective, false]
+
+
+Resources:
+  # IAM Access Analyzer
+  AccessAnalyzer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${AccessAnalyzerTemplateFile}
+      Parameters:
+        AnalyzerType: !Ref AnalyzerType
+
+  # AWS Config
+  Config:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${ConfigTemplateFile}
+      Parameters:
+        BucketName: !Ref BucketName
+
+  # CloudTrail
+  CloudTrail:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${CloudTrailTemplateFile}
+      Parameters:
+        Env: !Ref Env
+
+  # Guard Duty
+  GuardDuty:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${GuardDutyTemplateFile}
+      Parameters:
+        Frequency: !Ref Frequency
+
+  # Security Hub
+  SecurityHub:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${SecurityHubTemplateFile}
+
+  # Notification
+  Notification:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${NotificationTemplateFile}
+      Parameters:
+        Env: !Ref Env
+        S3BucketofState: !Ref S3BucketofState
+        S3ObjectofState: !Ref S3ObjectofState
+        NotificationTarget: !Ref NotificationTarget
+
+  # Detective
+  Detective:
+    Condition: CreateDetective
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${DetectiveTemplateFile}
+
+  

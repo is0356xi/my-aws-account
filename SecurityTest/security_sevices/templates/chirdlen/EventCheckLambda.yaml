@@ -1,0 +1,135 @@
+Resources:
+  EventCheckLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Check Event invoked Lambda function.
+      FunctionName: Event-Check-Lambda
+      Code:
+        ZipFile: |
+          import json
+          
+          def lambda_handler(event, context):
+            # Function Logsとして出力
+            print(event) 
+
+            # Function Responseとして出力
+            response = {
+              'statusCode': 200,
+              'body': json.dumps(event)
+            }
+
+            return response
+      
+      Handler: index.lambda_handler
+      Role: !Sub ${LambdaRole.Arn}
+      Runtime: python3.9
+
+
+
+  # IAM Role for Lambda
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EventCheck-Lambda-Role
+      Description: Allow Basic Execution
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+
+
+  # Lambda ResourceBase Policy
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref EventCheckLambda
+      Principal: events.amazonaws.com
+      # SourceArn: !ImportValue  EventBridgeArn # Exportされた値を参照
+      # SourceArn: !Sub ${EventRuleforSecurityFindingstoLambda.Arn}
+      SourceArn: !Sub ${EventRuleforCloudTrailtoLambda.Arn}
+    DependsOn: 
+    #  - EventRuleforSecurityFindingstoLambda
+     - EventRuleforCloudTrailtoLambda
+
+  # SecurityHub・GuardDutyの検出結果をイベントチェック用Lambdaに送信するEventBridge Rule
+  # EventRuleforSecurityFindingstoLambda:
+  #   Type: AWS::Events::Rule
+  #   Properties:
+  #     Description: "Send Security-Findings to Event-Check-Lambda"
+  #     EventPattern: 
+  #       source:
+  #         - aws.securityhub
+  #         - aws.guardduty
+  #       detail-type:
+  #         - Security Hub Findings - Imported
+  #         - GuardDuty Finding
+  #     Name: Send-Security-Findings-to-Lambda
+  #     State: ENABLED
+  #     Targets:
+  #       - Arn: !Sub ${EventCheckLambda.Arn} 
+  #         Id: Event-Check-Lambda
+
+  # CloudTrailのイベントをイベントチェック用Lambdaに送信するEventBridge Rule
+  EventRuleforCloudTrailtoLambda:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Send CloudTrail-Logs to Event-Check-Lambda"
+      EventPattern:
+        source:
+          - aws.cloudtrail
+          - aws.ec2
+          - aws.s3
+          - aws.iam
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventSource:
+            - cloudtrail.amazonaws.com
+            - ec2.amazonaws.com
+            - s3.amazonaws.com
+            - iam.amazonaws.com
+          $or:
+            - eventName:
+              - prefix: AuthorizeSecurityGroup  # 接頭
+              - suffix: Object                  # 接尾
+            - awsRegion:
+              - ap-northeast-1
+      Name:
+        Send-CloudTrailLogs-to-Lambda
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt EventCheckLambda.Arn
+          Id: Event-Check-Lambda
+
+
+  # EventBridge Rule
+  # SendGuardDutyFindingstoLambda:
+  #   Type: AWS::Events::Rule
+  #   Properties:
+  #     Description: "Send GuardDuty-Findings to Event-Check-Lambda"
+  #     EventPattern: 
+  #       source:
+  #         - aws.guardduty
+  #       detail-type:
+  #         - GuardDuty Finding
+  #     Name: Send-GuardDuty-Findings-to-Lambda
+  #     State: ENABLED
+  #     Targets:
+  #       - Arn: !Sub ${EventCheckLambda.Arn} 
+  #         Id: Event-Check-Lambda
+
+# イベントチェック用Lambda関数のARNを他スタックから参照できるように出力
+Outputs:
+  EventCheckLambdaArn:
+    Value: !GetAtt EventCheckLambda.Arn
+    Export:
+      Name: EventCheckLambdaArn
+
+    

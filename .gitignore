@@ -3,6 +3,7 @@
 
 # terraformの公開したくない変数群
 *.tfvars
+*parameters.cfg
 
 # ADユーザ
 *user_vars*
@@ -10,3 +11,15 @@
 
 # memo
 *.drawio*
+
+# テスト用アプリケーション 
+*node_module*
+*.pyc
+*py310*
+
+# ユーザデータに記載したDB接続情報
+terraform_src/envs/aws/SecurityTest/user_data_vars.tf
+
+# SAM
+*aws-sam*
+*tests/

@@ -1,0 +1,124 @@
+Parameters:
+  Env:
+    Description: environment name in which deploy the stacks
+    Type: String
+    Default: test
+
+Resources:
+  # CloudWatch Logsのロググループ
+  CloudWatchLogsGroupForCloudTrail:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: /aws/cloudtrail/SecurityAccountLogs
+      RetentionInDays: 365
+
+  # CloudTrailがCloudWatch Logsにデータを保存するためのロール
+  IAMRoleForCloudTrail:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Description: Permission CloudTrail to access CloudWatch Logs.
+      Policies:
+        - PolicyName: !Sub 'CloudTrail-to-CloudWatchLogs-Policy-${AWS::Region}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:PutLogEvents'
+                  - 'logs:CreateLogStream'
+                Resource:
+                  - !GetAtt CloudWatchLogsGroupForCloudTrail.Arn
+      RoleName: !Sub 'CloudTrail-to-CloudWatchLogs-Role-${AWS::Region}'
+
+  # CloudTrailのイベントログを保存するS3バケット
+  TrailBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub ${Env}-securityaccount-trailbucket
+      # サーバサイド暗号化
+      BucketEncryption:
+        ServerSideEncryptionConfiguration: 
+          - ServerSideEncryptionByDefault: 
+              SSEAlgorithm: AES256
+      # ライフサイクルポリシー
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpirationInDays 
+            ExpirationInDays: 60
+            Status: Enabled
+      # パブリックアクセスをブロック
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # CloudTrailに対して、S3バケットの読み書き権限を付与するバケットポリシー
+  S3BucketPolicyForCloudTrail:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref TrailBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Id: !Ref TrailBucket
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action:
+              - 's3:GetBucketAcl'
+            Resource:
+              - !GetAtt TrailBucket.Arn
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action:
+              - 's3:PutObject'
+            Resource:
+              - !Sub ${TrailBucket.Arn}/AWSLogs/${AWS::AccountId}/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+          - Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !GetAtt TrailBucket.Arn
+              - !Sub ${TrailBucket.Arn}/*
+            Condition:
+              Bool: 
+                aws:SecureTransport: false
+
+  # CloudTrailの作成
+  CloudTrail:
+    Type: "AWS::CloudTrail::Trail"
+    Properties:
+      TrailName: "securitytest-cloudtrail"
+      # CloudWatchと統合
+      CloudWatchLogsLogGroupArn: !GetAtt CloudWatchLogsGroupForCloudTrail.Arn
+      CloudWatchLogsRoleArn: !GetAtt IAMRoleForCloudTrail.Arn
+      # 保存先となるS3バケット
+      S3BucketName: !Ref TrailBucket
+      # S3データイベント・Lambdaイベントを収集する
+      EventSelectors:
+        - DataResources: 
+            - Type: AWS::S3::Object
+              Values: 
+                - arn:aws:s3
+            - Type: AWS::Lambda::Function
+              Values: 
+                - arn:aws:lambda
+      # LogファイルのValidationを有効化
+      EnableLogFileValidation: true 
+      # その他詳細設定
+      IsMultiRegionTrail: true
+      IncludeGlobalServiceEvents: true
+      IsLogging: true
+    

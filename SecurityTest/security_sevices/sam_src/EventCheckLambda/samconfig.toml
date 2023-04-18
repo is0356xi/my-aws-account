@@ -1,0 +1,57 @@
+# More information about the configuration file can be found here:
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-config.html
+version = 0.1
+
+[default]
+[default.global]
+[default.global.parameters]
+stack_name = "EventCheckLambda"
+
+[default.build]
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate]
+[default.validate.parameters]
+lint = true
+
+[default.deploy]
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-18c8hzdjjw674"
+s3_prefix = "EventCheckLambda"
+region = "ap-northeast-1"
+disable_rollback = true
+image_repositories = []
+profile = "Developers"
+
+[default.package]
+[default.package.parameters]
+resolve_s3 = true
+
+[default.sync]
+[default.sync.parameters]
+watch = true
+
+[default.local_start_api]
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[default.local_start_lambda]
+[default.local_start_lambda.parameters]
+warm_containers = "EAGER"
+
+[Developers]
+[Developers.deploy]
+[Developers.deploy.parameters]
+stack_name = "EventCheckLambda"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1q41wv0wwjjw1"
+s3_prefix = "EventCheckLambda"
+region = "ap-northeast-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+image_repositories = []

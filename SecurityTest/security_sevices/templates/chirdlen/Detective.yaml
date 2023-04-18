@@ -1,0 +1,3 @@
+Resources:
+  Detective:
+    Type: AWS::Detective::Graph

@@ -1,0 +1,89 @@
+Parameters:
+  BucketName:
+    Description: S3 bucket name used to record AWS Config data
+    Type: String
+
+Resources:
+  #ServiceLinkedRole (AWS Config)
+  SLRforConfig:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: config.amazonaws.com
+  
+  #ServiceLinkedRole (AWS Config Remediation)
+  SLRforConfigRemediation:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: remediation.config.amazonaws.com
+
+
+  # S3bucket used to record AWS Config data
+  S3forConfig:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: 
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpirationInDays 
+            ExpirationInDays: 30
+            Status: Enabled
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # BucketPolicy for AWS Config
+  S3BucketPolicyforConfig:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3forConfig
+      PolicyDocument: 
+        Version: 2012-10-17
+        Id: !Sub Permission-for-AWSConfig
+        Statement:
+          # Read Permission
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action:
+              - s3:GetBucketAcl
+              - s3:ListBucket
+            Resource:
+              - !GetAtt S3forConfig.Arn
+
+          # Write Permission
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action:
+              - s3:PutObject
+            Resource:
+              - !Sub ${S3forConfig.Arn}/AWSLogs/${AWS::AccountId}/Config/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  # Config
+  Config:
+    Type: AWS::Config::ConfigurationRecorder
+    Properties:
+      Name: ConfigRecorder
+      RecordingGroup:
+        AllSupported: true
+        IncludeGlobalResourceTypes: true
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig
+
+  # Output destination of Config data
+  ConfigDeliveryChannel:
+    Type: AWS::Config::DeliveryChannel
+    Properties:
+      S3BucketName: !Ref BucketName
+    DependsOn: 
+      - S3forConfig
+
+  
