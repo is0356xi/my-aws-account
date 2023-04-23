@@ -1,0 +1,7 @@
+variable "user_data_vars" {
+  default = {
+    Web-Server1 = "{\"host\":\"<RDSエンドポイントorDBサーバのプライベートIP>\", \"port\":\"3306\", \"user\":\"<ユーザ名>\", \"password\":\"<パスワード>\", \"database\":\"<データベース名>\"}"
+    Web-Server2 = "{\"host\":\"<RDSエンドポイントorDBサーバのプライベートIP>\", \"port\":\"3306\", \"user\":\"<ユーザ名>\", \"password\":\"<パスワード>\", \"database\":\"<データベース名>\"}"
+    rdsmanageserver = "None"
+  }
+}

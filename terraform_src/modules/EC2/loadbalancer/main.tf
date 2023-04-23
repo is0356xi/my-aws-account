@@ -5,7 +5,8 @@ resource "aws_lb" "lb" {
   internal           = each.value.internal
   load_balancer_type = each.value.load_balancer_type
   subnets            = [for name in each.value.subnet_names : var.created_subnet[name].id]
-
+  security_groups = each.value.load_balancer_type == "application" ? [for name in each.value.sg_names: var.created_sg[name].id] : null
+  
   tags = {
     Name = each.key
   }
@@ -22,7 +23,7 @@ resource "aws_lb_target_group" "tg" {
   health_check {
     port     = each.value.health_check.port
     protocol = each.value.health_check.protocol
-    path     = each.value.health_check.protocol == "TCP" ? null : each.value.health_check.path
+    path     = each.value.health_check.path
     matcher  = each.value.health_check.protocol == "TCP" ? null : null
   }
 
@@ -33,7 +34,8 @@ resource "aws_lb_target_group_attachment" "tg_attachment" {
   for_each = var.tg_attachment_params
 
   target_group_arn = aws_lb_target_group.tg[each.value.tg_name].arn
-  target_id        = each.value.target_type == "ip" ? var.created_eip[each.value.target].private_ip : null
+
+  target_id        = each.value.target_type == "ip" ? var.created_eip[each.value.target].private_ip : each.value.target_type == "instance" ? var.created_ec2[each.value.target].id : null
   port             = each.value.port
 
   depends_on = [aws_lb_target_group.tg]
