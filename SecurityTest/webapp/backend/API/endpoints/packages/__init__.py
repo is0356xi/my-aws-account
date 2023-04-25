@@ -1,7 +1,11 @@
 from .register_user import *
+from .show_users import *
+from .delete_users import *
 
 __all__ = [
-    'register_user'
+    'register_user',
+    'show_users',
+    'delete_users',
 ]
 
 # データベースへの接続処理

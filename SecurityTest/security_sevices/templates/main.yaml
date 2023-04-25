@@ -129,13 +129,19 @@ Parameters:
   DetectiveTemplateFile:
     Description:  Detective Template-URL stored in S3
     Type: String
+
+  # リソースの存在確認、スキップするリソース
   ExistsDetective:
     Description: Whether Detective exists or not
     Type: String
-
+  ExistsGuardDuty:
+    Description: Whether GuardDuty exists or not
+    Type: String
 
 Conditions:
   CreateDetective: !Equals [!Ref ExistsDetective, false]
+  CreateGuardDuty: !Equals [!Ref ExistsGuardDuty, false]
+  NotCreate: !Equals [true, true]
 
 
 Resources:
@@ -149,6 +155,7 @@ Resources:
 
   # AWS Config
   Config:
+    Condition: NotCreate
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${ConfigTemplateFile}
@@ -165,6 +172,7 @@ Resources:
 
   # Guard Duty
   GuardDuty:
+    Condition: CreateGuardDuty
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${GuardDutyTemplateFile}
@@ -177,8 +185,9 @@ Resources:
     Properties:
       TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${SecurityHubTemplateFile}
 
-  # Notification
+  # 通知機能
   Notification:
+    Condition: NotCreate
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub https://${TemplateBucketName}.s3.${Region}.amazonaws.com/${NotificationTemplateFile}

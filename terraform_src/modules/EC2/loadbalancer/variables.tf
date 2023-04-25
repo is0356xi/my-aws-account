@@ -8,8 +8,8 @@ variable "listener_params" {}
 variable "created_vpc" {}
 variable "created_subnet" {}
 variable "created_eip" {}
-variable "created_sg"{}
-variable "created_ec2"{}
+variable "created_sg" {}
+variable "created_ec2" {}
 
 
 

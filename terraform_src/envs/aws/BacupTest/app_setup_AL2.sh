@@ -4,7 +4,7 @@
 yum -y update && yum install -y git
 
 # リポジトリをclone
-git clone -b feature/security-test https://github.com/is0356xi/my-aws-account
+git clone https://github.com/is0356xi/my-aws-account
 cd /my-aws-account/SecurityTest/webapp
 
 # Vue.jsのセットアップ

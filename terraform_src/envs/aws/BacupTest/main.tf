@@ -83,7 +83,7 @@ module "web_server" {
 }
 
 # RDS管理用インスタンスの作成
-module "db_server" {
+module "rds_manage_server" {
   source     = "../../../modules/EC2/instances"
   env_params = var.env_params
 
@@ -98,11 +98,10 @@ module "db_server" {
 
 output "rdsmanageserver_ip" {
   value = {
-    public_ip = module.db_server.created_ec2["rdsmanageserver"].public_ip
-    private_ip = module.db_server.created_ec2["rdsmanageserver"].private_ip
+    public_ip = module.rds_manage_server.created_ec2["rdsmanageserver-BackupTest"].public_ip
+    private_ip = module.rds_manage_server.created_ec2["rdsmanageserver-BackupTest"].private_ip
   }
 }
-
 
 # ルートテーブルの作成
 locals {
@@ -143,7 +142,8 @@ module lb {
 
 output "created_resources" {
   value = {
-    webserver_ip = module.web_server.created_ec2["Web-Server1"].public_ip
+    webserver1_ip = module.web_server.created_ec2["Web-Server1-BackupTest"].public_ip
+    webserver2_ip = module.web_server.created_ec2["Web-Server2-BackupTest"].public_ip
     webapp_url = "http://${module.lb.created_lb["ALBBackupTest"].dns_name}"
   }
 }

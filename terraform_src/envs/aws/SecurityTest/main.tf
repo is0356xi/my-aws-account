@@ -118,23 +118,12 @@ module "dev_server" {
   depends_on = [module.network, module.securitygroup, module.iam_role]
 }
 
-
-# WEBサーバ用のインスタンスにElasticIPを付与
-# module "add_elasticip" {
-#   source = "../../../modules/VPC/elasticip"
-
-#   # ENI・ElasticIPのパラメータ
-#   eni_params = var.eni_params
-#   eip_params = var.eip_params
-
-#   # 作成済みのリソース
-#   created_vpc    = module.network.created_vpc
-#   created_subnet = module.network.created_subnet
-#   created_sg     = local.created_sg
-#   created_ec2    = module.web_server.created_ec2
-
-#   depends_on = [module.web_server, module.securitygroup]
-# }
+output "servers_info" {
+  value = {
+    dev_instance_id = module.dev_server.created_ec2["Dev-Server"].id
+    db_private_ip   = module.db_server.created_ec2["DB-Server"].private_ip
+  }
+}
 
 
 # ルートテーブルの作成
@@ -173,23 +162,9 @@ module "vpc_endpoint" {
 }
 
 
-# output "created_servers" {
-#   value = {
-#     dev_server_instance_id = module.dev_server.created_ec2["Dev-Server"].id
-#     db_server_private_ip = module.db_server.created_ec2["DB-Server"].private_ip
-#     webapp_url           = "http://${module.web_server.created_ec2["Web-Server"].public_ip}:5000"
-#   }
-# }
-
-
-### デバッグ ###
-# data "template_file" "user_data_test" {
-#   template = file("app_setup_AL2.sh")
-#   vars = {
-#     vars = "\"{'host':'10.1.1.236', 'port':'3306', 'user':'test_user', 'password':'Jamadayo61!', 'database':'securitytest'}\""
-#   }
-# }
-
-# output "debug" {
-#   value = data.template_file.user_data_test
-# }
+output "webserver_info" {
+  value = {
+    webserver_private_ip = module.web_server.created_ec2["Web-Server"].private_ip
+    webapp_url           = "http://${module.web_server.created_ec2["Web-Server"].public_ip}:5000"
+  }
+}
