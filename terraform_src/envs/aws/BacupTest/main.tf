@@ -98,7 +98,7 @@ module "rds_manage_server" {
 
 output "rdsmanageserver_ip" {
   value = {
-    public_ip = module.rds_manage_server.created_ec2["rdsmanageserver-BackupTest"].public_ip
+    public_ip  = module.rds_manage_server.created_ec2["rdsmanageserver-BackupTest"].public_ip
     private_ip = module.rds_manage_server.created_ec2["rdsmanageserver-BackupTest"].private_ip
   }
 }
@@ -125,7 +125,7 @@ module "routetable" {
 
 
 # ALBの作成
-module lb {
+module "lb" {
   source = "../../../modules/EC2/loadbalancer"
 
   lb_params            = var.lb_params
@@ -136,14 +136,14 @@ module lb {
   created_vpc    = module.network.created_vpc
   created_subnet = module.network.created_subnet
   created_eip    = null
-  created_sg = module.securitygroup.created_sg
-  created_ec2 = module.web_server.created_ec2
+  created_sg     = module.securitygroup.created_sg
+  created_ec2    = module.web_server.created_ec2
 }
 
 output "created_resources" {
   value = {
     webserver1_ip = module.web_server.created_ec2["Web-Server1-BackupTest"].public_ip
     webserver2_ip = module.web_server.created_ec2["Web-Server2-BackupTest"].public_ip
-    webapp_url = "http://${module.lb.created_lb["ALBBackupTest"].dns_name}"
+    webapp_url    = "http://${module.lb.created_lb["ALBBackupTest"].dns_name}"
   }
 }

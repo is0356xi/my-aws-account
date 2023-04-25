@@ -35,7 +35,7 @@ variable "igw_params" {
 # サブネットのパラメータ
 variable "subnet_params" {
   default = {
-     # LB用サブネット:AZ1
+    # LB用サブネット:AZ1
     subnet_for_lb1 = {
       vpc_name          = "vpc_for_backuptest"
       cidr_block        = "10.5.0.0/24"
@@ -101,9 +101,9 @@ variable "sg_params" {
 
         rules_ingress = {
           allow_ssh = {
-            from_port = 22
-            to_port   = 22
-            protocol  = "TCP"
+            from_port   = 22
+            to_port     = 22
+            protocol    = "TCP"
             cidr_blocks = ["MyIp"]
             sg_names    = null
           }
@@ -127,16 +127,16 @@ variable "sg_params" {
             sg_names    = ["sg_for_lb"]
           }
           allow_ssh = {
-            from_port = 22
-            to_port   = 22
-            protocol  = "TCP"
+            from_port   = 22
+            to_port     = 22
+            protocol    = "TCP"
             cidr_blocks = ["MyIp"]
             sg_names    = null
           }
         }
       }
 
-      
+
     }
 
     grandchild = {
@@ -217,7 +217,7 @@ variable "rtb_params" {
   default = {
     # LBのインターネットゲートウェイ向きのトラフィック用
     rtb_for_lb1 = {
-      name = "rtb_for_lb1"
+      name        = "rtb_for_lb1"
       vpc_name    = "vpc_for_backuptest"
       subnet_name = "subnet_for_lb1"
       routes = {
@@ -231,7 +231,7 @@ variable "rtb_params" {
 
     # LBのインターネットゲートウェイ向きのトラフィック用
     rtb_for_lb2 = {
-      name = "rtb_for_lb2"
+      name        = "rtb_for_lb2"
       vpc_name    = "vpc_for_backuptest"
       subnet_name = "subnet_for_lb2"
       routes = {
@@ -245,7 +245,7 @@ variable "rtb_params" {
 
     # WEBサーバが必要なパッケージをinstallする時のアウトバウンド用
     rtb_for_webserver1 = {
-      name = "rtb_for_webserver1"
+      name        = "rtb_for_webserver1"
       vpc_name    = "vpc_for_backuptest"
       subnet_name = "subnet_for_webserver1"
       routes = {
@@ -259,7 +259,7 @@ variable "rtb_params" {
 
     # WEBサーバが必要なパッケージをinstallする時のアウトバウンド用
     rtb_for_webserver2 = {
-      name = "rtb_for_webserver2"
+      name        = "rtb_for_webserver2"
       vpc_name    = "vpc_for_backuptest"
       subnet_name = "subnet_for_webserver2"
       routes = {
@@ -273,7 +273,7 @@ variable "rtb_params" {
 
     # RDS管理サーバが必要なパッケージをinstallする時のアウトバウンド用
     rtb_for_rdsmanageserver = {
-      name = "rtb_for_rdsmanageserver"
+      name        = "rtb_for_rdsmanageserver"
       vpc_name    = "vpc_for_backuptest"
       subnet_name = "subnet_for_rdsmanageserver"
       routes = {
