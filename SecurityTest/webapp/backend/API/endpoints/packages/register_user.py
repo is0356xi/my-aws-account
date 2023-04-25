@@ -28,7 +28,7 @@ def register_user(user_name, password, delay, connection):
         response['code'] = 400
         response['message'] = str(e)
 
-    # カーソルと接続をクローズ
+    # カーソルをクローズ
     cur.close()
     
     return response

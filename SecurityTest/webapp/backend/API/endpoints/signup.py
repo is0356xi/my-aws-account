@@ -41,7 +41,7 @@ class Signup(Resource):
         delay = body['delay']
 
         # MySQLの登録処理
-        response = register_user(user_name, password, delay, connection=global_conn)
+        response = register_user(user_name, password, delay, connection=conn)
         print(response)
 
         # 切断処理
