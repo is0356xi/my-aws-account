@@ -12,9 +12,10 @@ class Signup(Resource):
         body = request.get_json()
         user_name = body['user_name']
         password = body['password']
+        delay = body['delay']
 
         # MySQLの登録処理
-        status = register_user(user_name, password, global_conn)
-        print(status)
+        response = register_user(user_name, password, delay, connection=global_conn)
+        print(response)
 
-        return status
+        return response

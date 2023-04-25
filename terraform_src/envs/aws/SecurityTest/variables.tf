@@ -225,32 +225,6 @@ variable "ec2_params" {
   }
 }
 
-# ENI・ElasticIPのパラメータ
-variable "eni_params" {
-  default = {
-    # アタッチするENI群
-    eni_for_webserver = {
-      subnet_name          = "publicsubnet_for_webserver"
-      security_group_names = ["sg_for_webserver"]
-      ec2_name             = "Web-Server"
-      device_index         = 1
-      private_ips          = null
-      source_dest_check    = null
-    }
-  }
-}
-
-variable "eip_params" {
-  default = {
-    # FortigateVMにアタッチするEIP 
-    eip_for_webserver = {
-      eni_name        = "eni_for_webserver"
-      public_address  = "amazon"
-      private_address = null
-    }
-  }
-}
-
 # ルートテーブルのパラメータ
 variable "rtb_params" {
   default = {

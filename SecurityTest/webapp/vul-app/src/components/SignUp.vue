@@ -13,7 +13,7 @@
 
     <v-row>
       <v-col>
-        <form @submit.prevent="SignUp(user_name, password)">
+        <form @submit.prevent="SignUp(user_name, password, delay)">
           <v-text-field
             v-model="user_name"
             label="ユーザ名"
@@ -23,6 +23,12 @@
           <v-text-field
             v-model="password"
             label="パスワード"
+          >
+          </v-text-field>
+
+          <v-text-field
+            v-model="delay"
+            label="遅延"
           >
           </v-text-field>
 
@@ -54,14 +60,16 @@
       singup_response: "サインアップステータス表示用",
       signup_values: {
         user_name: 'user_name',
-        password: 'password'
+        password: 'password',
+        delay: '0'
       }
     }),
 
     methods: {
-      SignUp: async function(user_name, password){
+      SignUp: async function(user_name, password, delay){
         this.signup_values.user_name = user_name
         this.signup_values.password = password
+        this.signup_values.delay = delay
 
         const response = await axios.post('api/signup', this.signup_values)
         this.singup_response = response.data

@@ -15,7 +15,7 @@ variable "vpc_params" {
   default = {
     # トラフィック検査用VPC
     vpc_for_backuptest = {
-      cidr_block           = "10.1.0.0/16"
+      cidr_block           = "10.5.0.0/16"
       enable_dns_hostnames = true
       enable_dns_support   = true
     }
@@ -38,35 +38,35 @@ variable "subnet_params" {
      # LB用サブネット:AZ1
     subnet_for_lb1 = {
       vpc_name          = "vpc_for_backuptest"
-      cidr_block        = "10.1.0.0/24"
+      cidr_block        = "10.5.0.0/24"
       availability_zone = "ap-northeast-1a"
     }
 
     # LB用サブネット:AZ2
     subnet_for_lb2 = {
       vpc_name          = "vpc_for_backuptest"
-      cidr_block        = "10.1.1.0/24"
+      cidr_block        = "10.5.1.0/24"
       availability_zone = "ap-northeast-1c"
     }
 
     # Webサーバ用サブネット:AZ1
     subnet_for_webserver1 = {
       vpc_name          = "vpc_for_backuptest"
-      cidr_block        = "10.1.10.0/24"
+      cidr_block        = "10.5.10.0/24"
       availability_zone = "ap-northeast-1a"
     }
 
     # Webサーバ用サブネット:AZ2
     subnet_for_webserver2 = {
       vpc_name          = "vpc_for_backuptest"
-      cidr_block        = "10.1.11.0/24"
+      cidr_block        = "10.5.11.0/24"
       availability_zone = "ap-northeast-1c"
     }
 
     # RDS管理サーバ用サブネット:AZ1
     subnet_for_rdsmanageserver = {
       vpc_name          = "vpc_for_backuptest"
-      cidr_block        = "10.1.20.0/24"
+      cidr_block        = "10.5.20.0/24"
       availability_zone = "ap-northeast-1a"
     }
   }
@@ -166,7 +166,7 @@ variable "ec2_params" {
   default = {
     # WEBサーバ用インスタンス
     web = {
-      Web-Server1 = {
+      Web-Server1-BackupTest = {
         ami                         = "ami-02a2700d37baeef8b" # AL2
         availability_zone           = "ap-northeast-1a"
         instance_type               = "t2.micro"
@@ -178,11 +178,24 @@ variable "ec2_params" {
         user_data                   = "app_setup_AL2.sh"
         role_name                   = null
       }
+
+      Web-Server2-BackupTest = {
+        ami                         = "ami-02a2700d37baeef8b" # AL2
+        availability_zone           = "ap-northeast-1c"
+        instance_type               = "t2.micro"
+        associate_public_ip_address = true
+        subnet_name                 = "subnet_for_webserver2"
+        security_group_names        = ["sg_for_webserver"]
+        source_dest_check           = null
+        key_name                    = "keypair-for-webapp"
+        user_data                   = "app_setup_AL2.sh"
+        role_name                   = null
+      }
     }
 
     # RDS管理用インスタンス
     db = {
-      rdsmanageserver = {
+      rdsmanageserver-BackupTest = {
         ami                         = "ami-0cd0830ef4d2de449" # RHEL
         availability_zone           = "ap-northeast-1a"
         instance_type               = "t2.micro"
@@ -235,6 +248,20 @@ variable "rtb_params" {
       name = "rtb_for_webserver1"
       vpc_name    = "vpc_for_backuptest"
       subnet_name = "subnet_for_webserver1"
+      routes = {
+        for_igw = {
+          destination = "0.0.0.0/0"
+          type_dst    = "gateway"
+          next_hop    = "igw_for_lb"
+        }
+      }
+    }
+
+    # WEBサーバが必要なパッケージをinstallする時のアウトバウンド用
+    rtb_for_webserver2 = {
+      name = "rtb_for_webserver2"
+      vpc_name    = "vpc_for_backuptest"
+      subnet_name = "subnet_for_webserver2"
       routes = {
         for_igw = {
           destination = "0.0.0.0/0"
@@ -299,7 +326,13 @@ variable "tg_attachment_params" {
     webserver1_listen = {
       tg_name     = "TargetGroupALBBackupTest"
       target_type = "instance"
-      target      = "Web-Server1"
+      target      = "Web-Server1-BackupTest"
+      port        = 5000
+    }
+    webserver2_listen = {
+      tg_name     = "TargetGroupALBBackupTest"
+      target_type = "instance"
+      target      = "Web-Server2-BackupTest"
       port        = 5000
     }
   }

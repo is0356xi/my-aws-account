@@ -155,3 +155,76 @@ az login
 
 
 --------------------------------------------------------
+
+# MFAを有効化する手順
+
+- 現在は外部IDpではMFAサポートされていないらしい
+  - https://docs.aws.amazon.com/singlesignon/latest/userguide/mfa-considerations.html
+- Azure ADをIDpとすると、外部IDpになってしまう
+  - Azure ADとAD ConnectorでAWS Managed Microsoft ADにユーザを連携
+  - AWS Managed Microsoft ADをIDpに指定したらいけるかも？
+
+
+## **CLIの注意点**
+- 参考: https://docs.aws.amazon.com/ja_jp/cli/latest/userguide/cli-configure-role.html
+  - 認証情報を使用してCLIコマンドを実行すると有効期限が切れるまでCacheに認証情報が保存される
+  - IAMポリシーやCLIのConfigファイルを編集しても、キャッシュが原因で期待通りの動作にならない
+  - ポリシーなどを編集して動作を検証する場合は、キャッシュを消しておくと安全
+ 
+```sh:
+Remove-Item -Recurse -Force $env:USERPROFILE\.aws\cli\cache
+```
+
+## IAM Identicy CenterでMFAデバイスを追加する
+- SSO用のURLにアクセスし、MFAを有効化したいユーザの認証情報でログインする
+- MFA devices → Register device →　認証アプリ → Next → Show QR code
+  - QRコードをアプリで読み取り、認証コードを入力する
+
+
+## 信頼ポリシーを編集する？
+- Condition句でMFA有効化の場合のみ許可とする設定を記述
+  - 外部IDp(Azure AD)でユーザを管理している場合はどうなる？
+  - Azure AD側でMFA必須にする？
+  
+```json:
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<account-id>:role/aws-reserved/sso.amazonaws.com/ap-northeast-1/AWSReservedSSO_<Permission-Sets-Name>"
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+              "Bool": {
+                "aws:MultiFactorAuthPresent": "true"
+              }
+            }
+        }
+    ]
+}
+```
+
+## AWS CLIの設定/認証情報ファイルを編集？
+
+- configファイル
+
+```sh:
+; MFA Test
+[profile mfa_test]
+region=ap-northeast-1
+
+[profile switch_mfa_test]
+source_profile=mfa_test
+role_arn=<role-arn>
+mfa_serial=<mfa-arn>
+```
+
+- credentialsファイル
+
+```sh:
+[mfa_test]
+aws_access_key_id=<access-key>
+aws_secret_access_key=<secret-access-key>
+```
