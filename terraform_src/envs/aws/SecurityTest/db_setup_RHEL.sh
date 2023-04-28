@@ -4,7 +4,7 @@
 vars=${vars}
 
 # MySQLコマンドのインストール
-rpm -Uvh http://dev.mysql.com/get/mysql80-community-release-el8-1.noarch.rpm
+rpm -Uvh http://dev.mysql.com/get/mysql80-community-release-el8-5.noarch.rpm
 rpm --import https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
 dnf module disable mysql
 dnf install mysql-community-server -y
