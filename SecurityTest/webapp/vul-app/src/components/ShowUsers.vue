@@ -10,7 +10,7 @@
         <v-data-table
             :headers="headers"
             :items="items"
-        ></v-data-table>>
+        ></v-data-table>
       </v-row>
         
     </v-container>
